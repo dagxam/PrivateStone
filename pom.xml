@@ -1,32 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  pom.xml — основной файл Maven
+  Отвечает за:
+  - версию Java
+  - зависимости (Paper API)
+  - сборку плагина в .jar
+-->
+
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
          http://maven.apache.org/xsd/maven-4.0.0.xsd">
 
+    <!-- Версия модели Maven -->
     <modelVersion>4.0.0</modelVersion>
 
+    <!-- Группа (обычно домен наоборот) -->
     <groupId>me.privatestone</groupId>
+
+    <!-- Название плагина -->
     <artifactId>PrivateStone</artifactId>
+
+    <!-- Версия плагина -->
     <version>1.0.0</version>
 
+    <!-- Общие настройки проекта -->
     <properties>
+        <!-- Версия Java (ВАЖНО: сервер должен быть тоже на Java 21) -->
         <java.version>21</java.version>
+
+        <!-- Кодировка -->
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
+    <!-- Репозитории (откуда Maven скачивает зависимости) -->
     <repositories>
         <repository>
+            <!-- Официальный репозиторий Paper -->
             <id>papermc</id>
             <url>https://repo.papermc.io/repository/maven-public/</url>
         </repository>
     </repositories>
 
+    <!-- Зависимости -->
     <dependencies>
+        <!-- Paper API -->
         <dependency>
             <groupId>io.papermc.paper</groupId>
             <artifactId>paper-api</artifactId>
+
+            <!-- Версия Minecraft / Paper -->
             <version>1.21.1-R0.1-SNAPSHOT</version>
+
+            <!-- provided = библиотека уже есть на сервере -->
             <scope>provided</scope>
         </dependency>
     </dependencies>
+
+    <!-- Настройки сборки -->
+    <build>
+        <plugins>
+
+            <!-- Компилятор Java -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
+                <configuration>
+                    <!-- Указываем Java 21 -->
+                    <source>21</source>
+                    <target>21</target>
+                </configuration>
+            </plugin>
+
+            <!-- Создание итогового JAR-файла -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.6.0</version>
+                <executions>
+                    <execution>
+                        <!-- Выполняется при сборке -->
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+        </plugins>
+    </build>
 
 </project>
