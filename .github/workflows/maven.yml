@@ -1,0 +1,48 @@
+# Название workflow (отображается в GitHub → Actions)
+name: Сборка Minecraft плагина (Maven, Java 21)
+
+# Когда запускать сборку
+on:
+  # При каждом push в репозиторий
+  push:
+    branches: [ "main", "master" ]
+
+  # При pull request
+  pull_request:
+    branches: [ "main", "master" ]
+
+  # Возможность запустить вручную
+  workflow_dispatch:
+
+jobs:
+  build:
+    # Операционная система для сборки
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1️⃣ Клонируем репозиторий
+      - name: Получить код из репозитория
+        uses: actions/checkout@v4
+
+      # 2️⃣ Устанавливаем Java 21
+      - name: Установить Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'   # Рекомендуемая JVM
+          java-version: '21'
+          cache: 'maven'            # Кешируем зависимости Maven
+
+      # 3️⃣ Проверяем версию Java (для логов)
+      - name: Проверить версию Java
+        run: java -version
+
+      # 4️⃣ Сборка Maven-проекта
+      - name: Собрать проект Maven
+        run: mvn clean package
+
+      # 5️⃣ Загрузка JAR как артефакта
+      - name: Сохранить собранный плагин
+        uses: actions/upload-artifact@v4
+        with:
+          name: PrivateStone-plugin
+          path: target/*.jar
