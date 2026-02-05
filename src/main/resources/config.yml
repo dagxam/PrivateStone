@@ -1,0 +1,3 @@
+claimBlock: STONE
+allowOverlap: false
+maxSide: 128
