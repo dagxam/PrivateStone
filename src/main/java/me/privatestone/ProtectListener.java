@@ -1,7 +1,6 @@
 package me.privatestone;
 
 import org.bukkit.Location;
-import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -36,6 +35,12 @@ public class ProtectListener implements Listener {
         return off != null && off.getName() != null ? off.getName() : uuid.toString();
     }
 
+    private String autoClaimName(int n, String playerName) {
+        String fmt = plugin.getConfig().getString("claimAutoNameFormat", "Участок %n% %player%");
+        if (fmt == null) fmt = "Участок %n% %player%";
+        return fmt.replace("%n%", String.valueOf(n)).replace("%player%", playerName == null ? "Player" : playerName);
+    }
+
     @EventHandler(ignoreCancelled = true)
     public void onPlace(BlockPlaceEvent e) {
         Player p = e.getPlayer();
@@ -62,11 +67,14 @@ public class ProtectListener implements Listener {
             // проверка мира
             if (first.getWorld() == null || loc.getWorld() == null || !first.getWorld().equals(loc.getWorld())) {
                 firstCorner.remove(p.getUniqueId());
-                p.sendMessage("&cУглы должны быть в одном мире.");
+                p.sendMessage(Text.c("&cУглы должны быть в одном мире."));
                 return;
             }
 
-            Claim candidate = new Claim(p.getUniqueId(), first, loc);
+            int number = plugin.claims().allocateNumber(p.getUniqueId());
+            String claimName = autoClaimName(number, p.getName());
+
+            Claim candidate = new Claim(p.getUniqueId(), first, loc, number, claimName);
 
             int max = plugin.getMaxSide();
             if (candidate.sizeX() > max || candidate.sizeZ() > max) {
@@ -82,10 +90,11 @@ public class ProtectListener implements Listener {
             }
 
             plugin.claims().add(candidate);
-            plugin.claims().save(); // можно реже, но так надёжнее
+            plugin.claims().save();
             firstCorner.remove(p.getUniqueId());
 
             p.sendMessage(plugin.msg("created")
+                    .replace("%claimName%", candidate.getName())
                     .replace("%sizeX%", String.valueOf(candidate.sizeX()))
                     .replace("%sizeZ%", String.valueOf(candidate.sizeZ()))
                     .replace("%owner%", ownerName(candidate.getOwner())));
@@ -137,7 +146,6 @@ public class ProtectListener implements Listener {
     public void onEntityExplode(EntityExplodeEvent e) {
         if (!plugin.isProtectFromExplosions()) return;
 
-        // защищаем всё внутри приватов от взрывов (в т.ч. криперов)
         Iterator<org.bukkit.block.Block> it = e.blockList().iterator();
         while (it.hasNext()) {
             Location loc = it.next().getLocation();
