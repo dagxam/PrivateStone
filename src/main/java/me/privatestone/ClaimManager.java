@@ -15,6 +15,9 @@ public class ClaimManager {
     // claimId -> claim
     private final Map<String, Claim> claims = new HashMap<>();
 
+    // owner -> next number (auto increment)
+    private final Map<UUID, Integer> nextNumber = new HashMap<>();
+
     public ClaimManager(PrivateStonePlugin plugin) {
         this.plugin = plugin;
     }
@@ -27,12 +30,24 @@ public class ClaimManager {
         return claims.values().stream().filter(c -> c.getOwner().equals(owner)).collect(Collectors.toList());
     }
 
+    public int allocateNumber(UUID owner) {
+        int n = nextNumber.getOrDefault(owner, 1);
+        nextNumber.put(owner, n + 1);
+        return n;
+    }
+
     public void add(Claim claim) {
         claims.put(makeId(claim), claim);
+        // обновим nextNumber, если вдруг загружено/добавлено с большим номером
+        int currentNext = nextNumber.getOrDefault(claim.getOwner(), 1);
+        if (claim.getNumber() >= currentNext) {
+            nextNumber.put(claim.getOwner(), claim.getNumber() + 1);
+        }
     }
 
     public void remove(Claim claim) {
         claims.remove(makeId(claim));
+        // nextNumber НЕ уменьшаем специально — чтобы номера не переиспользовались
     }
 
     public Claim getAt(Location loc) {
@@ -57,7 +72,6 @@ public class ClaimManager {
     }
 
     private String makeId(Claim c) {
-        // stable id based on world + both anchors
         return c.getWorld() + ":" +
                 c.getA1x() + "," + c.getA1y() + "," + c.getA1z() + "|" +
                 c.getA2x() + "," + c.getA2y() + "," + c.getA2z();
@@ -65,6 +79,8 @@ public class ClaimManager {
 
     public void load() {
         claims.clear();
+        nextNumber.clear();
+
         File file = new File(plugin.getDataFolder(), "data.yml");
         if (!file.exists()) return;
 
@@ -83,13 +99,16 @@ public class ClaimManager {
                 int a2y = (int) map.get("a2y");
                 int a2z = (int) map.get("a2z");
 
+                int number = map.get("number") instanceof Number num ? num.intValue() : 1;
+                String name = map.get("name") != null ? map.get("name").toString() : ("Участок " + number);
+
                 var bw = Bukkit.getWorld(world);
                 if (bw == null) continue;
 
                 Location a1 = new Location(bw, a1x, a1y, a1z);
                 Location a2 = new Location(bw, a2x, a2y, a2z);
 
-                Claim c = new Claim(owner, a1, a2);
+                Claim c = new Claim(owner, a1, a2, number, name);
 
                 Object trustedObj = map.get("trusted");
                 if (trustedObj instanceof List<?> tlist) {
@@ -99,7 +118,7 @@ public class ClaimManager {
                     }
                 }
 
-                add(c);
+                add(c); // add() сам обновит nextNumber
             } catch (Exception ex) {
                 plugin.getLogger().warning("Failed to load one claim from data.yml: " + ex.getMessage());
             }
@@ -118,12 +137,17 @@ public class ClaimManager {
             Map<String, Object> map = new LinkedHashMap<>();
             map.put("owner", c.getOwner().toString());
             map.put("world", c.getWorld());
+
             map.put("a1x", c.getA1x());
             map.put("a1y", c.getA1y());
             map.put("a1z", c.getA1z());
             map.put("a2x", c.getA2x());
             map.put("a2y", c.getA2y());
             map.put("a2z", c.getA2z());
+
+            map.put("number", c.getNumber());
+            map.put("name", c.getName());
+
             map.put("trusted", c.getTrusted().stream().map(UUID::toString).collect(Collectors.toList()));
             list.add(map);
         }
