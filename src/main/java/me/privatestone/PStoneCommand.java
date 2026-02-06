@@ -24,6 +24,10 @@ public class PStoneCommand implements CommandExecutor, TabCompleter {
         return (op != null && op.getName() != null) ? op.getName() : uuid.toString();
     }
 
+    private boolean canBypass(Player p) {
+        return p != null && p.hasPermission("privatestone.bypass");
+    }
+
     @Override
     public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
         if (args.length == 0 || args[0].equalsIgnoreCase("help")) {
@@ -31,6 +35,7 @@ public class PStoneCommand implements CommandExecutor, TabCompleter {
             sender.sendMessage(Text.c("&e/pstone give [player] [amount] &7- give claim stones"));
             sender.sendMessage(Text.c("&e/pstone trust <player> &7- trust in claim you're standing in"));
             sender.sendMessage(Text.c("&e/pstone untrust <player> &7- untrust"));
+            sender.sendMessage(Text.c("&e/pstone rename <new_name> &7- rename claim you're standing in"));
             sender.sendMessage(Text.c("&e/pstone info &7- claim info where you stand"));
             sender.sendMessage(Text.c("&e/pstone reload &7- reload config"));
             return true;
@@ -114,6 +119,47 @@ public class PStoneCommand implements CommandExecutor, TabCompleter {
                 return true;
             }
 
+            case "rename" -> {
+                if (!(sender instanceof Player p)) {
+                    sender.sendMessage(plugin.msg("onlyPlayers"));
+                    return true;
+                }
+
+                if (args.length < 2) {
+                    p.sendMessage(plugin.msg("renameUsage"));
+                    return true;
+                }
+
+                Claim c = plugin.claims().getAt(p.getLocation());
+                if (c == null) {
+                    p.sendMessage(plugin.msg("notInClaim"));
+                    return true;
+                }
+
+                if (!c.getOwner().equals(p.getUniqueId()) && !canBypass(p)) {
+                    p.sendMessage(plugin.msg("notOwner"));
+                    return true;
+                }
+
+                String newName = String.join(" ", Arrays.copyOfRange(args, 1, args.length)).trim();
+                if (newName.isBlank()) {
+                    p.sendMessage(plugin.msg("renameEmpty"));
+                    return true;
+                }
+
+                int max = Math.max(1, plugin.getConfig().getInt("claimNameMaxLength", 32));
+                if (newName.length() > max) {
+                    p.sendMessage(plugin.msg("renameTooLong").replace("%max%", String.valueOf(max)));
+                    return true;
+                }
+
+                c.setName(newName);
+                plugin.claims().save();
+
+                p.sendMessage(plugin.msg("renameOk").replace("%claimName%", c.getName()));
+                return true;
+            }
+
             case "trust" -> {
                 if (!(sender instanceof Player p)) {
                     sender.sendMessage(plugin.msg("onlyPlayers"));
@@ -129,7 +175,7 @@ public class PStoneCommand implements CommandExecutor, TabCompleter {
                     p.sendMessage(plugin.msg("notInClaim"));
                     return true;
                 }
-                if (!c.getOwner().equals(p.getUniqueId()) && !p.hasPermission("privatestone.bypass")) {
+                if (!c.getOwner().equals(p.getUniqueId()) && !canBypass(p)) {
                     p.sendMessage(plugin.msg("notOwner"));
                     return true;
                 }
@@ -161,7 +207,7 @@ public class PStoneCommand implements CommandExecutor, TabCompleter {
                     p.sendMessage(plugin.msg("notInClaim"));
                     return true;
                 }
-                if (!c.getOwner().equals(p.getUniqueId()) && !p.hasPermission("privatestone.bypass")) {
+                if (!c.getOwner().equals(p.getUniqueId()) && !canBypass(p)) {
                     p.sendMessage(plugin.msg("notOwner"));
                     return true;
                 }
@@ -188,7 +234,7 @@ public class PStoneCommand implements CommandExecutor, TabCompleter {
     @Override
     public List<String> onTabComplete(CommandSender sender, Command cmd, String alias, String[] args) {
         if (args.length == 1) {
-            return List.of("help", "give", "trust", "untrust", "info", "reload").stream()
+            return List.of("help", "give", "trust", "untrust", "rename", "info", "reload").stream()
                     .filter(s -> s.startsWith(args[0].toLowerCase(Locale.ROOT)))
                     .collect(Collectors.toList());
         }
