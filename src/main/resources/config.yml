@@ -14,6 +14,9 @@ claimItem:
 # Доступные плейсхолдеры: %n% (номер), %player% (ник владельца)
 claimAutoNameFormat: "Участок %n% %player%"
 
+# Максимальная длина имени участка (после rename)
+claimNameMaxLength: 32
+
 messages:
   noPerm: "&cНет прав."
   onlyPlayers: "&cТолько для игроков."
@@ -29,6 +32,12 @@ messages:
   untrustOk: "&aИгрок &e%player%&a больше не доверен в этом привате."
   notInClaim: "&cТы не в привате."
   notOwner: "&cТы не владелец этого привата."
+
+  renameUsage: "&cИспользование: /pstone rename <новое_имя>"
+  renameOk: "&aУчасток переименован в: &e%claimName%"
+  renameTooLong: "&cСлишком длинное имя. Макс: &e%max%&c символов."
+  renameEmpty: "&cИмя не может быть пустым."
+
   info:
     - "&a--- &ePrivateStone &a---"
     - "&7Название: &e%claimName%"
