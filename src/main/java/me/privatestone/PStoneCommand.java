@@ -105,6 +105,7 @@ public class PStoneCommand implements CommandExecutor, TabCompleter {
 
                 for (String line : plugin.msgList("info")) {
                     p.sendMessage(line
+                            .replace("%claimName%", c.getName())
                             .replace("%owner%", nameOf(c.getOwner()))
                             .replace("%sizeX%", String.valueOf(c.sizeX()))
                             .replace("%sizeZ%", String.valueOf(c.sizeZ()))
