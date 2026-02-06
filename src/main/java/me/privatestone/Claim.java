@@ -14,9 +14,8 @@ public class Claim {
     private final int a1x, a1y, a1z;
     private final int a2x, a2y, a2z;
 
-    // Новое: номер и название участка
     private final int number;
-    private final String name;
+    private String name; // стало изменяемым для /pstone rename
 
     private final Set<UUID> trusted = new HashSet<>();
 
@@ -36,7 +35,7 @@ public class Claim {
         this.a2x = a2.getBlockX(); this.a2y = a2.getBlockY(); this.a2z = a2.getBlockZ();
 
         this.number = number;
-        this.name = name == null ? ("Участок " + number) : name;
+        this.name = (name == null || name.isBlank()) ? ("Участок " + number) : name;
     }
 
     public UUID getOwner() { return owner; }
@@ -55,6 +54,11 @@ public class Claim {
 
     public int getNumber() { return number; }
     public String getName() { return name; }
+
+    public void setName(String name) {
+        if (name == null || name.isBlank()) return;
+        this.name = name;
+    }
 
     public Set<UUID> getTrusted() { return trusted; }
 
