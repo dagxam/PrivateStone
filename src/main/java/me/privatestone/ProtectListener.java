@@ -1,108 +1,160 @@
 package me.privatestone;
 
-import org.bukkit.ChatColor;
 import org.bukkit.Location;
-import org.bukkit.Material;
-import org.bukkit.block.Block;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
-import org.bukkit.event.*;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockExplodeEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.inventory.ItemStack;
 
-import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class ProtectListener implements Listener {
-
     private final PrivateStonePlugin plugin;
-    private final Map<UUID, Location> firstCorner = new HashMap<>();
+
+    // player -> first corner
+    private final Map<UUID, Location> firstCorner = new ConcurrentHashMap<>();
 
     public ProtectListener(PrivateStonePlugin plugin) {
         this.plugin = plugin;
     }
 
-    private boolean bypass(Player p) {
-        return p.hasPermission("privatestone.bypass");
+    private boolean canBypass(Player p) {
+        return p != null && p.hasPermission("privatestone.bypass");
     }
 
-    @EventHandler
+    private String ownerName(UUID uuid) {
+        var off = plugin.getServer().getOfflinePlayer(uuid);
+        return off != null && off.getName() != null ? off.getName() : uuid.toString();
+    }
+
+    @EventHandler(ignoreCancelled = true)
     public void onPlace(BlockPlaceEvent e) {
         Player p = e.getPlayer();
-        Block b = e.getBlockPlaced();
+        Location loc = e.getBlockPlaced().getLocation();
 
-        if (b.getType() == Material.STONE) {
-            Location loc = b.getLocation();
-
-            Claim in = plugin.claims.getAt(loc);
-            if (in != null && !in.canUse(p.getUniqueId()) && !bypass(p)) {
-                e.setCancelled(true);
-                p.sendMessage(ChatColor.RED + "Чужой приват");
-                return;
-            }
-
-            if (!firstCorner.containsKey(p.getUniqueId())) {
-                firstCorner.put(p.getUniqueId(), loc);
-                p.sendMessage(ChatColor.YELLOW + "Первый угол установлен");
-                return;
-            }
-
-            Location first = firstCorner.remove(p.getUniqueId());
-            Claim c = new Claim(p.getUniqueId(), first, loc);
-
-            if (!plugin.allowOverlap && plugin.claims.overlaps(c)) {
-                p.sendMessage(ChatColor.RED + "Приват пересекается");
-                return;
-            }
-
-            plugin.claims.add(c);
-            p.sendMessage(ChatColor.GREEN + "Приват создан");
+        // запрещаем ставить в чужом привате
+        Claim at = plugin.claims().getAt(loc);
+        if (at != null && !at.canUse(p.getUniqueId()) && !canBypass(p)) {
+            e.setCancelled(true);
+            p.sendMessage(plugin.msg("insideOther").replace("%owner%", ownerName(at.getOwner())));
             return;
         }
 
-        Claim c = plugin.claims.getAt(b.getLocation());
-        if (c != null && !c.canUse(p.getUniqueId()) && !bypass(p)) {
-            e.setCancelled(true);
-            p.sendMessage(ChatColor.RED + "Территория приватна");
-        }
-    }
-
-    @EventHandler
-    public void onBreak(BlockBreakEvent e) {
-        Player p = e.getPlayer();
-        Block b = e.getBlock();
-
-        if (b.getType() == Material.STONE) {
-            Claim c = plugin.claims.getByAnchor(b.getLocation());
-            if (c != null) {
-                if (!c.owner.equals(p.getUniqueId()) && !bypass(p)) {
-                    e.setCancelled(true);
-                    p.sendMessage(ChatColor.RED + "Не твой приват");
-                    return;
-                }
-                plugin.claims.remove(c);
-                p.sendMessage(ChatColor.GREEN + "Приват удалён");
+        // логика создания привата — ТОЛЬКО если ставится спец-предмет
+        ItemStack inHand = e.getItemInHand();
+        if (e.getBlockPlaced().getType() == plugin.getClaimBlock() && plugin.isClaimItem(inHand)) {
+            Location first = firstCorner.get(p.getUniqueId());
+            if (first == null) {
+                firstCorner.put(p.getUniqueId(), loc);
+                p.sendMessage(plugin.msg("firstCorner"));
                 return;
             }
-        }
 
-        Claim c = plugin.claims.getAt(b.getLocation());
-        if (c != null && !c.canUse(p.getUniqueId()) && !bypass(p)) {
-            e.setCancelled(true);
-            p.sendMessage(ChatColor.RED + "Территория приватна");
+            // проверка мира
+            if (first.getWorld() == null || loc.getWorld() == null || !first.getWorld().equals(loc.getWorld())) {
+                firstCorner.remove(p.getUniqueId());
+                p.sendMessage("&cУглы должны быть в одном мире.");
+                return;
+            }
+
+            Claim candidate = new Claim(p.getUniqueId(), first, loc);
+
+            int max = plugin.getMaxSide();
+            if (candidate.sizeX() > max || candidate.sizeZ() > max) {
+                firstCorner.remove(p.getUniqueId());
+                p.sendMessage(plugin.msg("tooLarge").replace("%max%", String.valueOf(max)));
+                return;
+            }
+
+            if (!plugin.isAllowOverlap() && plugin.claims().overlaps(candidate)) {
+                firstCorner.remove(p.getUniqueId());
+                p.sendMessage(plugin.msg("overlap"));
+                return;
+            }
+
+            plugin.claims().add(candidate);
+            plugin.claims().save(); // можно реже, но так надёжнее
+            firstCorner.remove(p.getUniqueId());
+
+            p.sendMessage(plugin.msg("created")
+                    .replace("%sizeX%", String.valueOf(candidate.sizeX()))
+                    .replace("%sizeZ%", String.valueOf(candidate.sizeZ()))
+                    .replace("%owner%", ownerName(candidate.getOwner())));
         }
     }
 
-    @EventHandler
+    @EventHandler(ignoreCancelled = true)
+    public void onBreak(BlockBreakEvent e) {
+        Player p = e.getPlayer();
+        Location loc = e.getBlock().getLocation();
+
+        // если ломают якорь привата
+        Claim anchor = plugin.claims().getByAnchor(loc);
+        if (anchor != null) {
+            boolean allowed = anchor.getOwner().equals(p.getUniqueId()) || canBypass(p);
+            if (!allowed) {
+                e.setCancelled(true);
+                p.sendMessage(plugin.msg("cantBreakAnchor"));
+                return;
+            }
+            plugin.claims().remove(anchor);
+            plugin.claims().save();
+            p.sendMessage(plugin.msg("removed"));
+            return;
+        }
+
+        // ломать в чужом привате нельзя
+        Claim at = plugin.claims().getAt(loc);
+        if (at != null && !at.canUse(p.getUniqueId()) && !canBypass(p)) {
+            e.setCancelled(true);
+            p.sendMessage(plugin.msg("insideOther").replace("%owner%", ownerName(at.getOwner())));
+        }
+    }
+
+    @EventHandler(ignoreCancelled = true)
     public void onInteract(PlayerInteractEvent e) {
         if (e.getClickedBlock() == null) return;
         Player p = e.getPlayer();
+        Location loc = e.getClickedBlock().getLocation();
 
-        Claim c = plugin.claims.getAt(e.getClickedBlock().getLocation());
-        if (c != null && !c.canUse(p.getUniqueId()) && !bypass(p)) {
+        Claim at = plugin.claims().getAt(loc);
+        if (at != null && !at.canUse(p.getUniqueId()) && !canBypass(p)) {
             e.setCancelled(true);
-            p.sendMessage(ChatColor.RED + "Нельзя использовать");
+            p.sendMessage(plugin.msg("insideOther").replace("%owner%", ownerName(at.getOwner())));
+        }
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onEntityExplode(EntityExplodeEvent e) {
+        if (!plugin.isProtectFromExplosions()) return;
+
+        // защищаем всё внутри приватов от взрывов (в т.ч. криперов)
+        Iterator<org.bukkit.block.Block> it = e.blockList().iterator();
+        while (it.hasNext()) {
+            Location loc = it.next().getLocation();
+            Claim c = plugin.claims().getAt(loc);
+            if (c != null) it.remove();
+        }
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onBlockExplode(BlockExplodeEvent e) {
+        if (!plugin.isProtectFromExplosions()) return;
+
+        Iterator<org.bukkit.block.Block> it = e.blockList().iterator();
+        while (it.hasNext()) {
+            Location loc = it.next().getLocation();
+            Claim c = plugin.claims().getAt(loc);
+            if (c != null) it.remove();
         }
     }
 }
