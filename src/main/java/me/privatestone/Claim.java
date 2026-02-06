@@ -14,9 +14,13 @@ public class Claim {
     private final int a1x, a1y, a1z;
     private final int a2x, a2y, a2z;
 
+    // Новое: номер и название участка
+    private final int number;
+    private final String name;
+
     private final Set<UUID> trusted = new HashSet<>();
 
-    public Claim(UUID owner, Location a1, Location a2) {
+    public Claim(UUID owner, Location a1, Location a2, int number, String name) {
         this.owner = owner;
         this.world = a1.getWorld().getName();
 
@@ -30,6 +34,9 @@ public class Claim {
 
         this.a1x = a1.getBlockX(); this.a1y = a1.getBlockY(); this.a1z = a1.getBlockZ();
         this.a2x = a2.getBlockX(); this.a2y = a2.getBlockY(); this.a2z = a2.getBlockZ();
+
+        this.number = number;
+        this.name = name == null ? ("Участок " + number) : name;
     }
 
     public UUID getOwner() { return owner; }
@@ -45,6 +52,9 @@ public class Claim {
     public int getA2x() { return a2x; }
     public int getA2y() { return a2y; }
     public int getA2z() { return a2z; }
+
+    public int getNumber() { return number; }
+    public String getName() { return name; }
 
     public Set<UUID> getTrusted() { return trusted; }
 
@@ -78,7 +88,6 @@ public class Claim {
         if (other == null) return false;
         if (!this.world.equals(other.world)) return false;
 
-        // Axis-aligned rectangle intersection
         return this.x1 <= other.x2 && this.x2 >= other.x1
             && this.z1 <= other.z2 && this.z2 >= other.z1;
     }
