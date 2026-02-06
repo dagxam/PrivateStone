@@ -1,9 +1,11 @@
 package me.privatestone;
 
+import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.ShapedRecipe;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -19,6 +21,7 @@ public class PrivateStonePlugin extends JavaPlugin {
     private boolean protectFromExplosions;
 
     private NamespacedKey claimItemKey;
+    private NamespacedKey recipeKey;
 
     @Override
     public void onEnable() {
@@ -36,18 +39,26 @@ public class PrivateStonePlugin extends JavaPlugin {
             getCommand("pstone").setTabCompleter(cmd);
         }
 
+        registerRecipe();
+
         getLogger().info("PrivateStone enabled. Claims loaded: " + claimManager.getAll().size());
     }
 
     @Override
     public void onDisable() {
         if (claimManager != null) claimManager.save();
+
+        if (recipeKey != null) {
+            Bukkit.removeRecipe(recipeKey);
+        }
+
         getLogger().info("PrivateStone disabled.");
     }
 
     public void reloadAll() {
         reloadConfig();
         loadSettings();
+        registerRecipe();
     }
 
     private void loadSettings() {
@@ -61,7 +72,66 @@ public class PrivateStonePlugin extends JavaPlugin {
         this.protectFromExplosions = c.getBoolean("protectFromExplosions", true);
 
         this.claimItemKey = new NamespacedKey(this, "privatestone_claim_item");
+        this.recipeKey = new NamespacedKey(this, "privatestone_recipe");
     }
+
+    /* =========================
+       Claim item
+       ========================= */
+
+    public ItemStack createClaimItem(int amount) {
+        ItemStack it = new ItemStack(getClaimBlock(), Math.max(1, amount));
+        ItemMeta meta = it.getItemMeta();
+        if (meta != null) {
+            meta.setDisplayName(Text.c(getConfig().getString("claimItem.name", "&aPrivateStone")));
+            meta.setLore(Text.c(getConfig().getStringList("claimItem.lore")));
+            meta.getPersistentDataContainer().set(
+                    getClaimItemKey(),
+                    PersistentDataType.BYTE,
+                    (byte) 1
+            );
+            it.setItemMeta(meta);
+        }
+        return it;
+    }
+
+    public boolean isClaimItem(ItemStack it) {
+        if (it == null || it.getType().isAir()) return false;
+        if (it.getType() != getClaimBlock()) return false;
+
+        ItemMeta meta = it.getItemMeta();
+        if (meta == null) return false;
+
+        Byte b = meta.getPersistentDataContainer()
+                .get(getClaimItemKey(), PersistentDataType.BYTE);
+
+        return b != null && b == (byte) 1;
+    }
+
+    /* =========================
+       Recipe
+       ========================= */
+
+    private void registerRecipe() {
+        // убираем старый рецепт (если reload)
+        Bukkit.removeRecipe(recipeKey);
+
+        ItemStack result = createClaimItem(1);
+
+        ShapedRecipe recipe = new ShapedRecipe(recipeKey, result);
+        recipe.shape(
+                " S ",
+                " S ",
+                "   "
+        );
+        recipe.setIngredient('S', Material.STONE);
+
+        Bukkit.addRecipe(recipe);
+    }
+
+    /* =========================
+       Getters / helpers
+       ========================= */
 
     public ClaimManager claims() { return claimManager; }
 
@@ -77,26 +147,5 @@ public class PrivateStonePlugin extends JavaPlugin {
 
     public List<String> msgList(String path) {
         return Text.c(getConfig().getStringList("messages." + path));
-    }
-
-    public ItemStack createClaimItem(int amount) {
-        ItemStack it = new ItemStack(getClaimBlock(), Math.max(1, amount));
-        ItemMeta meta = it.getItemMeta();
-        if (meta != null) {
-            meta.setDisplayName(Text.c(getConfig().getString("claimItem.name", "&aPrivateStone")));
-            meta.setLore(Text.c(getConfig().getStringList("claimItem.lore")));
-            meta.getPersistentDataContainer().set(getClaimItemKey(), PersistentDataType.BYTE, (byte) 1);
-            it.setItemMeta(meta);
-        }
-        return it;
-    }
-
-    public boolean isClaimItem(ItemStack it) {
-        if (it == null || it.getType().isAir()) return false;
-        if (it.getType() != getClaimBlock()) return false;
-        ItemMeta meta = it.getItemMeta();
-        if (meta == null) return false;
-        Byte b = meta.getPersistentDataContainer().get(getClaimItemKey(), PersistentDataType.BYTE);
-        return b != null && b == (byte) 1;
     }
 }
