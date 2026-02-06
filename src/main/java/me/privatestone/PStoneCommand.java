@@ -35,7 +35,7 @@ public class PStoneCommand implements CommandExecutor, TabCompleter {
             sender.sendMessage(Text.c("&e/pstone give [player] [amount] &7- give claim stones"));
             sender.sendMessage(Text.c("&e/pstone trust <player> &7- trust in claim you're standing in"));
             sender.sendMessage(Text.c("&e/pstone untrust <player> &7- untrust"));
-            sender.sendMessage(Text.c("&e/pstone rename <new_name> &7- rename claim you're standing in"));
+            sender.sendMessage(Text.c("&e/pstone rename <new_name> &7- rename claim you're standing in (supports & color codes)"));
             sender.sendMessage(Text.c("&e/pstone info &7- claim info where you stand"));
             sender.sendMessage(Text.c("&e/pstone reload &7- reload config"));
             return true;
@@ -109,7 +109,8 @@ public class PStoneCommand implements CommandExecutor, TabCompleter {
                         : c.getTrusted().stream().map(this::nameOf).collect(Collectors.joining(", "));
 
                 for (String line : plugin.msgList("info")) {
-                    p.sendMessage(line
+                    // claim name уже может содержать §, но на всякий случай прогоняем через Text.c только формат строки
+                    p.sendMessage(Text.c(line)
                             .replace("%claimName%", c.getName())
                             .replace("%owner%", nameOf(c.getOwner()))
                             .replace("%sizeX%", String.valueOf(c.sizeX()))
@@ -141,19 +142,25 @@ public class PStoneCommand implements CommandExecutor, TabCompleter {
                     return true;
                 }
 
-                String newName = String.join(" ", Arrays.copyOfRange(args, 1, args.length)).trim();
-                if (newName.isBlank()) {
+                String raw = String.join(" ", Arrays.copyOfRange(args, 1, args.length)).trim();
+                if (raw.isBlank()) {
                     p.sendMessage(plugin.msg("renameEmpty"));
                     return true;
                 }
 
+                // Проверку длины делаем по "видимому" тексту (без цвет-кодов)
+                String visible = stripColorCodes(raw);
+
                 int max = Math.max(1, plugin.getConfig().getInt("claimNameMaxLength", 32));
-                if (newName.length() > max) {
+                if (visible.length() > max) {
                     p.sendMessage(plugin.msg("renameTooLong").replace("%max%", String.valueOf(max)));
                     return true;
                 }
 
-                c.setName(newName);
+                // Преобразуем & -> §
+                String coloredName = Text.c(raw);
+
+                c.setName(coloredName);
                 plugin.claims().save();
 
                 p.sendMessage(plugin.msg("renameOk").replace("%claimName%", c.getName()));
@@ -229,6 +236,13 @@ public class PStoneCommand implements CommandExecutor, TabCompleter {
                 return true;
             }
         }
+    }
+
+    private static String stripColorCodes(String s) {
+        if (s == null) return "";
+        // Удаляем &x и §x (minecraft color codes)
+        // Не идеально для hex (&x&F&F...), но для длины этого достаточно: вырежем все &. и §.
+        return s.replaceAll("(?i)[&§][0-9A-FK-ORX]", "");
     }
 
     @Override
