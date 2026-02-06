@@ -1,12 +1,17 @@
 name: PrivateStone
-version: 1.0.0
+version: 1.1.0
 main: me.privatestone.PrivateStonePlugin
 api-version: "1.21"
 
 commands:
   pstone:
     description: PrivateStone commands
+    usage: /pstone help
 
 permissions:
   privatestone.bypass:
+    description: Bypass all protections
+    default: op
+  privatestone.admin:
+    description: Admin commands (give/reload)
     default: op
