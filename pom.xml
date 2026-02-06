@@ -1,95 +1,52 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!--
-  pom.xml — основной файл Maven
-  Отвечает за:
-  - версию Java
-  - зависимости (Paper API)
-  - сборку плагина в .jar
--->
-
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
-         http://maven.apache.org/xsd/maven-4.0.0.xsd">
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
 
-    <!-- Версия модели Maven -->
-    <modelVersion>4.0.0</modelVersion>
+  <groupId>me.privatestone</groupId>
+  <artifactId>PrivateStone</artifactId>
+  <version>1.1.0</version>
+  <name>PrivateStone</name>
 
-    <!-- Группа (обычно домен наоборот) -->
-    <groupId>me.privatestone</groupId>
+  <properties>
+    <maven.compiler.source>21</maven.compiler.source>
+    <maven.compiler.target>21</maven.compiler.target>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
 
-    <!-- Название плагина -->
-    <artifactId>PrivateStone</artifactId>
+  <repositories>
+    <!-- Spigot snapshots -->
+    <repository>
+      <id>spigotmc-repo</id>
+      <url>https://hub.spigotmc.org/nexus/content/repositories/snapshots/</url>
+    </repository>
+  </repositories>
 
-    <!-- Версия плагина -->
-    <version>1.0.0</version>
+  <dependencies>
+    <dependency>
+      <groupId>org.spigotmc</groupId>
+      <artifactId>spigot-api</artifactId>
+      <version>1.21.1-R0.1-SNAPSHOT</version>
+      <scope>provided</scope>
+    </dependency>
+  </dependencies>
 
-    <!-- Общие настройки проекта -->
-    <properties>
-        <!-- Версия Java (ВАЖНО: сервер должен быть тоже на Java 21) -->
-        <java.version>21</java.version>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.13.0</version>
+        <configuration>
+          <release>21</release>
+        </configuration>
+      </plugin>
 
-        <!-- Кодировка -->
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    </properties>
-
-    <!-- Репозитории (откуда Maven скачивает зависимости) -->
-    <repositories>
-        <repository>
-            <!-- Официальный репозиторий Paper -->
-            <id>papermc</id>
-            <url>https://repo.papermc.io/repository/maven-public/</url>
-        </repository>
-    </repositories>
-
-    <!-- Зависимости -->
-    <dependencies>
-        <!-- Paper API -->
-        <dependency>
-            <groupId>io.papermc.paper</groupId>
-            <artifactId>paper-api</artifactId>
-
-            <!-- Версия Minecraft / Paper -->
-            <version>1.21.1-R0.1-SNAPSHOT</version>
-
-            <!-- provided = библиотека уже есть на сервере -->
-            <scope>provided</scope>
-        </dependency>
-    </dependencies>
-
-    <!-- Настройки сборки -->
-    <build>
-        <plugins>
-
-            <!-- Компилятор Java -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.13.0</version>
-                <configuration>
-                    <!-- Указываем Java 21 -->
-                    <source>21</source>
-                    <target>21</target>
-                </configuration>
-            </plugin>
-
-            <!-- Создание итогового JAR-файла -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-shade-plugin</artifactId>
-                <version>3.6.0</version>
-                <executions>
-                    <execution>
-                        <!-- Выполняется при сборке -->
-                        <phase>package</phase>
-                        <goals>
-                            <goal>shade</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-
-        </plugins>
-    </build>
-
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <version>3.4.2</version>
+      </plugin>
+    </plugins>
+  </build>
 </project>
