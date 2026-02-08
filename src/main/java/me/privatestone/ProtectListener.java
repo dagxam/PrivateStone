@@ -4,10 +4,12 @@ import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockExplodeEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
+import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.ItemStack;
 
@@ -41,16 +43,23 @@ public class ProtectListener implements Listener {
         return fmt.replace("%n%", String.valueOf(n)).replace("%player%", playerName == null ? "Player" : playerName);
     }
 
+    private boolean denyIfForeign(Player p, Location loc) {
+        Claim at = plugin.claims().getAt(loc);
+        if (at == null) return false;
+        if (at.canUse(p.getUniqueId()) || canBypass(p)) return false;
+
+        p.sendMessage(plugin.msg("insideOther").replace("%owner%", ownerName(at.getOwner())));
+        return true;
+    }
+
     @EventHandler(ignoreCancelled = true)
     public void onPlace(BlockPlaceEvent e) {
         Player p = e.getPlayer();
         Location loc = e.getBlockPlaced().getLocation();
 
         // запрещаем ставить в чужом привате
-        Claim at = plugin.claims().getAt(loc);
-        if (at != null && !at.canUse(p.getUniqueId()) && !canBypass(p)) {
+        if (denyIfForeign(p, loc)) {
             e.setCancelled(true);
-            p.sendMessage(plugin.msg("insideOther").replace("%owner%", ownerName(at.getOwner())));
             return;
         }
 
@@ -122,23 +131,50 @@ public class ProtectListener implements Listener {
         }
 
         // ломать в чужом привате нельзя
-        Claim at = plugin.claims().getAt(loc);
-        if (at != null && !at.canUse(p.getUniqueId()) && !canBypass(p)) {
+        if (denyIfForeign(p, loc)) {
             e.setCancelled(true);
-            p.sendMessage(plugin.msg("insideOther").replace("%owner%", ownerName(at.getOwner())));
         }
     }
 
+    /**
+     * Блокируем использование блоков в чужом привате:
+     * двери/кнопки/рычаги/сундуки/верстаки/печки/люки/калитки/плиты и т.д.
+     */
     @EventHandler(ignoreCancelled = true)
     public void onInteract(PlayerInteractEvent e) {
-        if (e.getClickedBlock() == null) return;
         Player p = e.getPlayer();
-        Location loc = e.getClickedBlock().getLocation();
 
-        Claim at = plugin.claims().getAt(loc);
-        if (at != null && !at.canUse(p.getUniqueId()) && !canBypass(p)) {
+        // 1) Нажимные плиты (PHYSICAL) — у них нет "клика", но они активируются наступанием
+        if (e.getAction() == Action.PHYSICAL) {
+            if (e.getClickedBlock() == null) return;
+            Location loc = e.getClickedBlock().getLocation();
+            if (denyIfForeign(p, loc)) {
+                e.setCancelled(true);
+            }
+            return;
+        }
+
+        // 2) Правый/левый клик по блоку
+        if (e.getClickedBlock() == null) return;
+
+        Location loc = e.getClickedBlock().getLocation();
+        if (denyIfForeign(p, loc)) {
+            // Это перекрывает: двери, кнопки, сундуки, рычаги, люки, верстаки, печи, бочки, шалкеры и т.д.
             e.setCancelled(true);
-            p.sendMessage(plugin.msg("insideOther").replace("%owner%", ownerName(at.getOwner())));
+        }
+    }
+
+    /**
+     * Блокируем взаимодействие с сущностями в чужом привате:
+     * рамки, стойки для брони, лодки/вагонетки, жители и т.п.
+     */
+    @EventHandler(ignoreCancelled = true)
+    public void onInteractEntity(PlayerInteractEntityEvent e) {
+        Player p = e.getPlayer();
+        Location loc = e.getRightClicked().getLocation();
+
+        if (denyIfForeign(p, loc)) {
+            e.setCancelled(true);
         }
     }
 
