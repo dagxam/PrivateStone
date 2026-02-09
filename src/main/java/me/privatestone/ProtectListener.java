@@ -37,6 +37,12 @@ public class ProtectListener implements Listener {
         return off != null && off.getName() != null ? off.getName() : uuid.toString();
     }
 
+    private String claimId(Claim c) {
+        // Читабельный ID: Nick#Number
+        String nick = ownerName(c.getOwner());
+        return nick + "#" + c.getNumber();
+    }
+
     private String autoClaimName(int n, String playerName) {
         String fmt = plugin.getConfig().getString("claimAutoNameFormat", "Участок %n% %player%");
         if (fmt == null) fmt = "Участок %n% %player%";
@@ -115,7 +121,7 @@ public class ProtectListener implements Listener {
         Player p = e.getPlayer();
         Location loc = e.getBlock().getLocation();
 
-        // если ломают якорь привата
+        // если ломают любой из двух камней привата (якорь) — удаляем весь участок
         Claim anchor = plugin.claims().getByAnchor(loc);
         if (anchor != null) {
             boolean allowed = anchor.getOwner().equals(p.getUniqueId()) || canBypass(p);
@@ -124,9 +130,14 @@ public class ProtectListener implements Listener {
                 p.sendMessage(plugin.msg("cantBreakAnchor"));
                 return;
             }
+
+            // удаляем участок полностью (и его имя/ID исчезает вместе с ним)
             plugin.claims().remove(anchor);
             plugin.claims().save();
-            p.sendMessage(plugin.msg("removed"));
+
+            p.sendMessage(plugin.msg("removed")
+                    .replace("%claimName%", anchor.getName())
+                    .replace("%claimId%", claimId(anchor)));
             return;
         }
 
@@ -144,24 +155,18 @@ public class ProtectListener implements Listener {
     public void onInteract(PlayerInteractEvent e) {
         Player p = e.getPlayer();
 
-        // 1) Нажимные плиты (PHYSICAL) — у них нет "клика", но они активируются наступанием
+        // Нажимные плиты (PHYSICAL)
         if (e.getAction() == Action.PHYSICAL) {
             if (e.getClickedBlock() == null) return;
             Location loc = e.getClickedBlock().getLocation();
-            if (denyIfForeign(p, loc)) {
-                e.setCancelled(true);
-            }
+            if (denyIfForeign(p, loc)) e.setCancelled(true);
             return;
         }
 
-        // 2) Правый/левый клик по блоку
+        // Клик по блоку
         if (e.getClickedBlock() == null) return;
-
         Location loc = e.getClickedBlock().getLocation();
-        if (denyIfForeign(p, loc)) {
-            // Это перекрывает: двери, кнопки, сундуки, рычаги, люки, верстаки, печи, бочки, шалкеры и т.д.
-            e.setCancelled(true);
-        }
+        if (denyIfForeign(p, loc)) e.setCancelled(true);
     }
 
     /**
@@ -172,10 +177,7 @@ public class ProtectListener implements Listener {
     public void onInteractEntity(PlayerInteractEntityEvent e) {
         Player p = e.getPlayer();
         Location loc = e.getRightClicked().getLocation();
-
-        if (denyIfForeign(p, loc)) {
-            e.setCancelled(true);
-        }
+        if (denyIfForeign(p, loc)) e.setCancelled(true);
     }
 
     @EventHandler(ignoreCancelled = true)
@@ -184,8 +186,8 @@ public class ProtectListener implements Listener {
 
         Iterator<org.bukkit.block.Block> it = e.blockList().iterator();
         while (it.hasNext()) {
-            Location loc = it.next().getLocation();
-            Claim c = plugin.claims().getAt(loc);
+            Location bLoc = it.next().getLocation();
+            Claim c = plugin.claims().getAt(bLoc);
             if (c != null) it.remove();
         }
     }
@@ -196,8 +198,8 @@ public class ProtectListener implements Listener {
 
         Iterator<org.bukkit.block.Block> it = e.blockList().iterator();
         while (it.hasNext()) {
-            Location loc = it.next().getLocation();
-            Claim c = plugin.claims().getAt(loc);
+            Location bLoc = it.next().getLocation();
+            Claim c = plugin.claims().getAt(bLoc);
             if (c != null) it.remove();
         }
     }
