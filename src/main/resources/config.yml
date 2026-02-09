@@ -4,7 +4,8 @@ maxSide: 128
 protectFromExplosions: true
 
 claimItem:
-  name: "&aPrivateStone"
+  # Русское название предмета привата
+  name: "&aКамень привата"
   lore:
     - "&7Поставь два камня, чтобы создать приват."
     - "&7Обычный камень не создаёт приват!"
@@ -20,14 +21,17 @@ claimNameMaxLength: 32
 messages:
   noPerm: "&cНет прав."
   onlyPlayers: "&cТолько для игроков."
-  giveOk: "&aВыдано &e%amount%&a шт. предмета привата игроку &e%player%&a."
+  giveOk: "&aВыдано &e%amount%&a шт. предмета &eКамень привата&a игроку &e%player%&a."
   firstCorner: "&eПервый угол установлен. Поставь второй камень привата."
   created: "&aПриват создан: &e%claimName% &7(&e%sizeX%x%sizeZ%&7)&a. Владелец: &e%owner%&a."
   tooLarge: "&cСлишком большой приват. Макс сторона: &e%max%&c."
   overlap: "&cПриват пересекается с существующим. Включи allowOverlap или выбери другое место."
   insideOther: "&cЭто зона привата игрока &e%owner%&c."
-  removed: "&aПриват удалён (якорь сломан)."
-  cantBreakAnchor: "&cНельзя ломать якорь чужого привата."
+
+  # Обновлено: удаление теперь показывает имя участка и ID
+  removed: "&cУдалён участок: &e%claimName% &7(ID: &f%claimId%&7)&c."
+
+  cantBreakAnchor: "&cНельзя ломать камень привата чужого участка."
   trustOk: "&aТеперь игрок &e%player%&a доверен в этом привате."
   untrustOk: "&aИгрок &e%player%&a больше не доверен в этом привате."
   notInClaim: "&cТы не в привате."
