@@ -1,48 +1,35 @@
-# Название workflow (отображается в GitHub → Actions)
-name: Сборка Minecraft плагина (Maven, Java 21)
+name: Build with Maven (Java 21)
 
-# Когда запускать сборку
 on:
-  # При каждом push в репозиторий
   push:
-    branches: [ "main", "master" ]
-
-  # При pull request
+    branches: [ "main" ]
   pull_request:
-    branches: [ "main", "master" ]
-
-  # Возможность запустить вручную
-  workflow_dispatch:
+    branches: [ "main" ]
 
 jobs:
   build:
-    # Операционная система для сборки
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Клонируем репозиторий
-      - name: Получить код из репозитория
+      # 1. Получаем репозиторий
+      - name: Check out repository
         uses: actions/checkout@v4
 
-      # 2️⃣ Устанавливаем Java 21
-      - name: Установить Java 21
+      # 2. Устанавливаем JDK 21 (Temurin)
+      - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'   # Рекомендуемая JVM
+          distribution: 'temurin'
           java-version: '21'
-          cache: 'maven'            # Кешируем зависимости Maven
+          cache: 'maven'
 
-      # 3️⃣ Проверяем версию Java (для логов)
-      - name: Проверить версию Java
-        run: java -version
+      # 3. Собираем плагин Maven
+      - name: Build with Maven
+        run: mvn -B package --file pom.xml
 
-      # 4️⃣ Сборка Maven-проекта
-      - name: Собрать проект Maven
-        run: mvn clean package
-
-      # 5️⃣ Загрузка JAR как артефакта
-      - name: Сохранить собранный плагин
+      # 4. Загружаем готовый .jar как артефакт
+      - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: PrivateStone-plugin
+          name: TreeFall
           path: target/*.jar
