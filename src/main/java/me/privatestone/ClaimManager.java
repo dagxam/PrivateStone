@@ -1,7 +1,6 @@
 package me.privatestone;
 
 import org.bukkit.Bukkit;
-import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.configuration.file.YamlConfiguration;
 
@@ -19,13 +18,9 @@ public class ClaimManager {
     private final Map<String, Set<Claim>> chunkIndex = new HashMap<>();
     private final Map<String, Claim> anchorIndex = new HashMap<>();
 
-    public ClaimManager(PrivateStonePlugin plugin) {
-        this.plugin = plugin;
-    }
+    public ClaimManager(PrivateStonePlugin plugin) { this.plugin = plugin; }
 
-    public Collection<Claim> getAll() {
-        return Collections.unmodifiableCollection(claims.values());
-    }
+    public Collection<Claim> getAll() { return Collections.unmodifiableCollection(claims.values()); }
 
     public List<Claim> getByOwner(UUID owner) {
         return claims.values().stream().filter(c -> c.getOwner().equals(owner)).collect(Collectors.toList());
@@ -94,26 +89,18 @@ public class ClaimManager {
     private interface ChunkConsumer { void accept(String world, int chunkX, int chunkZ); }
 
     private void forEachIndexedChunk(Claim claim, ChunkConsumer consumer) {
-        int minChunkX = claim.getMinX() >> 4;
-        int maxChunkX = claim.getMaxX() >> 4;
-        int minChunkZ = claim.getMinZ() >> 4;
-        int maxChunkZ = claim.getMaxZ() >> 4;
+        int minChunkX = claim.getX1() >> 4;
+        int maxChunkX = claim.getX2() >> 4;
+        int minChunkZ = claim.getZ1() >> 4;
+        int maxChunkZ = claim.getZ2() >> 4;
         for (int x = minChunkX; x <= maxChunkX; x++) {
             for (int z = minChunkZ; z <= maxChunkZ; z++) consumer.accept(claim.getWorld(), x, z);
         }
     }
 
-    private String chunkKey(String world, int chunkX, int chunkZ) {
-        return world + ':' + chunkX + ':' + chunkZ;
-    }
-
-    private String anchorKey(Location location) {
-        return anchorKey(location.getWorld().getName(), location.getBlockX(), location.getBlockY(), location.getBlockZ());
-    }
-
-    private String anchorKey(String world, int x, int y, int z) {
-        return world + ':' + x + ':' + y + ':' + z;
-    }
+    private String chunkKey(String world, int chunkX, int chunkZ) { return world + ':' + chunkX + ':' + chunkZ; }
+    private String anchorKey(Location location) { return anchorKey(location.getWorld().getName(), location.getBlockX(), location.getBlockY(), location.getBlockZ()); }
+    private String anchorKey(String world, int x, int y, int z) { return world + ':' + x + ':' + y + ':' + z; }
 
     private String makeId(Claim claim) {
         return claim.getWorld() + ':' + claim.getA1x() + ',' + claim.getA1y() + ',' + claim.getA1z() + '|' +
@@ -121,11 +108,7 @@ public class ClaimManager {
     }
 
     public void load() {
-        claims.clear();
-        nextNumber.clear();
-        chunkIndex.clear();
-        anchorIndex.clear();
-
+        claims.clear(); nextNumber.clear(); chunkIndex.clear(); anchorIndex.clear();
         File file = new File(plugin.getDataFolder(), "data.yml");
         if (!file.exists()) return;
 
@@ -139,8 +122,8 @@ public class ClaimManager {
                     plugin.getLogger().warning("Claim skipped: world not found: " + world);
                     continue;
                 }
-                int a1x = number(map, "a1x"); int a1y = number(map, "a1y"); int a1z = number(map, "a1z");
-                int a2x = number(map, "a2x"); int a2y = number(map, "a2y"); int a2z = number(map, "a2z");
+                int a1x = number(map, "a1x"), a1y = number(map, "a1y"), a1z = number(map, "a1z");
+                int a2x = number(map, "a2x"), a2y = number(map, "a2y"), a2z = number(map, "a2z");
                 int claimNumber = map.get("number") instanceof Number n ? n.intValue() : 1;
                 String name = map.get("name") == null ? "Участок " + claimNumber : map.get("name").toString();
 
@@ -171,23 +154,18 @@ public class ClaimManager {
             plugin.getLogger().severe("Failed to create plugin data folder.");
             return;
         }
-
         File file = new File(folder, "data.yml");
         YamlConfiguration yml = new YamlConfiguration();
         List<Map<String, Object>> list = new ArrayList<>(claims.size());
-
         for (Claim claim : claims.values()) {
             Map<String, Object> map = new LinkedHashMap<>();
-            map.put("owner", claim.getOwner().toString());
-            map.put("world", claim.getWorld());
+            map.put("owner", claim.getOwner().toString()); map.put("world", claim.getWorld());
             map.put("a1x", claim.getA1x()); map.put("a1y", claim.getA1y()); map.put("a1z", claim.getA1z());
             map.put("a2x", claim.getA2x()); map.put("a2y", claim.getA2y()); map.put("a2z", claim.getA2z());
-            map.put("number", claim.getNumber());
-            map.put("name", claim.getName());
+            map.put("number", claim.getNumber()); map.put("name", claim.getName());
             map.put("trusted", claim.getTrusted().stream().map(UUID::toString).collect(Collectors.toList()));
             list.add(map);
         }
-
         yml.set("claims", list);
         try { yml.save(file); }
         catch (IOException e) { plugin.getLogger().severe("Failed to save data.yml: " + e.getMessage()); }
