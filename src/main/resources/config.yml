@@ -1,47 +1,65 @@
-claimBlock: STONE
+# Материалы, из которых можно создать приватный блок.
+# Рецепт для каждого материала: 9 одинаковых обычных блоков в сетке 3x3.
+# Результат выглядит как исходный блок, но имеет скрытую метку PrivateStone.
+claimBlocks:
+  - STONE
+  - OAK_LOG
+  - SPRUCE_LOG
+  - BIRCH_LOG
+  - JUNGLE_LOG
+  - ACACIA_LOG
+  - DARK_OAK_LOG
+  - MANGROVE_LOG
+  - CHERRY_LOG
+  - PALE_OAK_LOG
+  - CRIMSON_STEM
+  - WARPED_STEM
+  - OAK_WOOD
+  - SPRUCE_WOOD
+  - BIRCH_WOOD
+  - JUNGLE_WOOD
+  - ACACIA_WOOD
+  - DARK_OAK_WOOD
+  - MANGROVE_WOOD
+  - CHERRY_WOOD
+  - PALE_OAK_WOOD
+  - CRIMSON_HYPHAE
+  - WARPED_HYPHAE
+
 allowOverlap: false
 maxSide: 128
 protectFromExplosions: true
 
 claimItem:
-  # Русское название предмета привата
-  name: "&aКамень привата"
+  name: "&aПриватный блок: &e%block%"
   lore:
-    - "&7Поставь два камня, чтобы создать приват."
-    - "&7Обычный камень не создаёт приват!"
+    - "&7Поставь два приватных блока, чтобы создать участок."
+    - "&7Можно использовать блоки разных материалов."
+    - "&7Для крафта нужно 9 одинаковых обычных блоков."
   defaultGiveAmount: 2
 
-# Авто-имя участка при создании
-# Доступные плейсхолдеры: %n% (номер), %player% (ник владельца)
 claimAutoNameFormat: "Участок %n% %player%"
-
-# Максимальная длина имени участка (после rename)
 claimNameMaxLength: 32
 
 messages:
   noPerm: "&cНет прав."
   onlyPlayers: "&cТолько для игроков."
-  giveOk: "&aВыдано &e%amount%&a шт. предмета &eКамень привата&a игроку &e%player%&a."
-  firstCorner: "&eПервый угол установлен. Поставь второй камень привата."
+  giveOk: "&aВыдано &e%amount%&a шт. приватного блока &e%player%&a."
+  firstCorner: "&eПервый угол установлен. Поставь второй приватный блок."
   created: "&aПриват создан: &e%claimName% &7(&e%sizeX%x%sizeZ%&7)&a. Владелец: &e%owner%&a."
   tooLarge: "&cСлишком большой приват. Макс сторона: &e%max%&c."
   overlap: "&cПриват пересекается с существующим. Включи allowOverlap или выбери другое место."
   insideOther: "&cЭто зона привата игрока &e%owner%&c."
-
-  # Обновлено: удаление теперь показывает имя участка и ID
   removed: "&cУдалён участок: &e%claimName% &7(ID: &f%claimId%&7)&c."
-
-  cantBreakAnchor: "&cНельзя ломать камень привата чужого участка."
+  cantBreakAnchor: "&cНельзя ломать приватный блок чужого участка."
   trustOk: "&aТеперь игрок &e%player%&a доверен в этом привате."
   untrustOk: "&aИгрок &e%player%&a больше не доверен в этом привате."
   notInClaim: "&cТы не в привате."
   notOwner: "&cТы не владелец этого привата."
-
   renameUsage: "&cИспользование: /pstone rename <новое_имя>"
   renameOk: "&aУчасток переименован в: &e%claimName%"
   renameTooLong: "&cСлишком длинное имя. Макс: &e%max%&c символов."
   renameEmpty: "&cИмя не может быть пустым."
-
   info:
     - "&a--- &ePrivateStone &a---"
     - "&7Название: &e%claimName%"
