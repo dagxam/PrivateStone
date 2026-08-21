@@ -67,7 +67,6 @@ public class PrivateStonePlugin extends JavaPlugin {
             else getLogger().warning("Invalid claim block in config: " + raw);
         }
 
-        // Совместимость со старым config.yml.
         if (claimBlocks.isEmpty()) {
             Material legacy = Material.matchMaterial(c.getString("claimBlock", "STONE"));
             claimBlocks.add(legacy == null ? Material.STONE : legacy);
@@ -117,7 +116,7 @@ public class PrivateStonePlugin extends JavaPlugin {
             recipeKeys.put(material, key);
 
             ShapedRecipe recipe = new ShapedRecipe(key, createClaimItem(material, 1));
-            recipe.shape("BBB", "B B", "BBB");
+            recipe.shape("BBB", "BBB", "BBB");
             recipe.setIngredient('B', material);
             Bukkit.addRecipe(recipe);
         }
