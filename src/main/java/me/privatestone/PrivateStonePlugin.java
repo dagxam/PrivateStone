@@ -10,18 +10,18 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.util.List;
+import java.util.*;
 
 public class PrivateStonePlugin extends JavaPlugin {
     private ClaimManager claimManager;
 
-    private Material claimBlock;
+    private final Set<Material> claimBlocks = EnumSet.noneOf(Material.class);
     private boolean allowOverlap;
     private int maxSide;
     private boolean protectFromExplosions;
 
     private NamespacedKey claimItemKey;
-    private NamespacedKey recipeKey;
+    private final Map<Material, NamespacedKey> recipeKeys = new EnumMap<>(Material.class);
 
     @Override
     public void onEnable() {
@@ -39,103 +39,118 @@ public class PrivateStonePlugin extends JavaPlugin {
             getCommand("pstone").setTabCompleter(cmd);
         }
 
-        registerRecipe();
-
+        registerRecipes();
         getLogger().info("PrivateStone enabled. Claims loaded: " + claimManager.getAll().size());
     }
 
     @Override
     public void onDisable() {
         if (claimManager != null) claimManager.save();
-
-        if (recipeKey != null) {
-            Bukkit.removeRecipe(recipeKey);
-        }
-
+        unregisterRecipes();
         getLogger().info("PrivateStone disabled.");
     }
 
     public void reloadAll() {
         reloadConfig();
+        unregisterRecipes();
         loadSettings();
-        registerRecipe();
+        registerRecipes();
     }
 
     private void loadSettings() {
         FileConfiguration c = getConfig();
+        claimBlocks.clear();
 
-        this.claimBlock = Material.matchMaterial(c.getString("claimBlock", "STONE"));
-        if (this.claimBlock == null) this.claimBlock = Material.STONE;
+        for (String raw : c.getStringList("claimBlocks")) {
+            Material material = Material.matchMaterial(raw);
+            if (isValidClaimMaterial(material)) claimBlocks.add(material);
+            else getLogger().warning("Invalid claim block in config: " + raw);
+        }
+
+        // Совместимость со старым config.yml.
+        if (claimBlocks.isEmpty()) {
+            Material legacy = Material.matchMaterial(c.getString("claimBlock", "STONE"));
+            claimBlocks.add(legacy == null ? Material.STONE : legacy);
+        }
 
         this.allowOverlap = c.getBoolean("allowOverlap", false);
         this.maxSide = Math.max(1, c.getInt("maxSide", 128));
         this.protectFromExplosions = c.getBoolean("protectFromExplosions", true);
-
         this.claimItemKey = new NamespacedKey(this, "privatestone_claim_item");
-        this.recipeKey = new NamespacedKey(this, "privatestone_recipe");
     }
 
-    /* =========================
-       Claim item
-       ========================= */
+    private boolean isValidClaimMaterial(Material material) {
+        return material != null && material.isBlock() && !material.isAir();
+    }
 
     public ItemStack createClaimItem(int amount) {
-        ItemStack it = new ItemStack(getClaimBlock(), Math.max(1, amount));
-        ItemMeta meta = it.getItemMeta();
+        return createClaimItem(getDefaultClaimBlock(), amount);
+    }
+
+    public ItemStack createClaimItem(Material material, int amount) {
+        if (!isClaimBlock(material)) material = getDefaultClaimBlock();
+
+        ItemStack item = new ItemStack(material, Math.max(1, amount));
+        ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName(Text.c(getConfig().getString("claimItem.name", "&aPrivateStone")));
+            String baseName = getConfig().getString("claimItem.name", "&aБлок привата");
+            meta.setDisplayName(Text.c(baseName.replace("%block%", formatMaterial(material))));
             meta.setLore(Text.c(getConfig().getStringList("claimItem.lore")));
-            meta.getPersistentDataContainer().set(
-                    getClaimItemKey(),
-                    PersistentDataType.BYTE,
-                    (byte) 1
-            );
-            it.setItemMeta(meta);
+            meta.getPersistentDataContainer().set(claimItemKey, PersistentDataType.BYTE, (byte) 1);
+            item.setItemMeta(meta);
         }
-        return it;
+        return item;
     }
 
-    public boolean isClaimItem(ItemStack it) {
-        if (it == null || it.getType().isAir()) return false;
-        if (it.getType() != getClaimBlock()) return false;
-
-        ItemMeta meta = it.getItemMeta();
+    public boolean isClaimItem(ItemStack item) {
+        if (item == null || item.getType().isAir() || !isClaimBlock(item.getType())) return false;
+        ItemMeta meta = item.getItemMeta();
         if (meta == null) return false;
-
-        Byte b = meta.getPersistentDataContainer()
-                .get(getClaimItemKey(), PersistentDataType.BYTE);
-
-        return b != null && b == (byte) 1;
+        Byte marker = meta.getPersistentDataContainer().get(claimItemKey, PersistentDataType.BYTE);
+        return marker != null && marker == (byte) 1;
     }
 
-    /* =========================
-       Recipe
-       ========================= */
+    private void registerRecipes() {
+        unregisterRecipes();
+        for (Material material : claimBlocks) {
+            NamespacedKey key = new NamespacedKey(this, "privatestone_" + material.getKey().getKey().toLowerCase(Locale.ROOT));
+            recipeKeys.put(material, key);
 
-    private void registerRecipe() {
-        // убираем старый рецепт (если reload)
-        Bukkit.removeRecipe(recipeKey);
-
-        ItemStack result = createClaimItem(1);
-
-        ShapedRecipe recipe = new ShapedRecipe(recipeKey, result);
-        recipe.shape(
-                " S ",
-                " S ",
-                "   "
-        );
-        recipe.setIngredient('S', Material.STONE);
-
-        Bukkit.addRecipe(recipe);
+            ShapedRecipe recipe = new ShapedRecipe(key, createClaimItem(material, 1));
+            recipe.shape("BBB", "B B", "BBB");
+            recipe.setIngredient('B', material);
+            Bukkit.addRecipe(recipe);
+        }
     }
 
-    /* =========================
-       Getters / helpers
-       ========================= */
+    private void unregisterRecipes() {
+        for (NamespacedKey key : recipeKeys.values()) Bukkit.removeRecipe(key);
+        recipeKeys.clear();
+    }
+
+    public boolean isClaimBlock(Material material) {
+        return material != null && claimBlocks.contains(material);
+    }
+
+    public Set<Material> getClaimBlocks() {
+        return Collections.unmodifiableSet(claimBlocks);
+    }
+
+    public Material getDefaultClaimBlock() {
+        return claimBlocks.contains(Material.STONE) ? Material.STONE : claimBlocks.iterator().next();
+    }
+
+    private String formatMaterial(Material material) {
+        String[] words = material.name().toLowerCase(Locale.ROOT).split("_");
+        StringBuilder result = new StringBuilder();
+        for (String word : words) {
+            if (!result.isEmpty()) result.append(' ');
+            result.append(Character.toUpperCase(word.charAt(0))).append(word.substring(1));
+        }
+        return result.toString();
+    }
 
     public ClaimManager claims() { return claimManager; }
-
-    public Material getClaimBlock() { return claimBlock; }
     public boolean isAllowOverlap() { return allowOverlap; }
     public int getMaxSide() { return maxSide; }
     public boolean isProtectFromExplosions() { return protectFromExplosions; }
